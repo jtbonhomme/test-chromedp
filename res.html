@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]><html class="no-js lt-ie9 lt-ie8 lt-ie7"><![endif]-->
+<!--[if IE 7]><html class="no-js lt-ie9 lt-ie8"><![endif]-->
+<!--[if IE 8]><html class="no-js lt-ie9"><![endif]-->
+<!--[if gt IE 8]><!-->
+<html class="no-js">
+<!--<![endif]-->
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>What's my user agent?</title>
+    <meta name="description"
+        content="Detect user-agent, operating system, browser, and device using several libraries, including ua-parser, ua-parser-js, and platform.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div class="content"><a href="https://github.com/sandinmyjoints/whatsmyua"><img
+                style="position: absolute; top: 0; right: 0; border: 0;"
+                src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub"></a>
+        <div class="top block">
+            <h1>What's my user agent?</h1>
+            <p>See what your user-agent detection library really thinks!</p>
+            <form action="/" method="post"><label for="custom-ua-string">Enter a user-agent string:<textarea
+                        name="custom-ua-string" id="custom-ua-string" autofocus=""
+                        class="input">Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/89.0.4389.90 Safari/537.36</textarea></label><input
+                    type="submit" value="Go!" class="go"></form>
+        </div>
+        <div id="useragent" class="parser block">
+            <h2>According to&nbsp;<a href="https://github.com/3rd-Eden/useragent">useragent</a>&nbsp;v2.2.1:</h2>
+            <div class="parser-results">
+                <h2>ua</h2>
+                <ul>
+                    <li id="rawUa">rawUa: Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like
+                        Gecko) HeadlessChrome/89.0.4389.90 Safari/537.36</li>
+                    <li id="string">string:</li>
+                    <li id="family">family: HeadlessChrome</li>
+                    <li id="major">major: 0</li>
+                    <li id="minor">minor: 0</li>
+                    <li id="patch">patch: 0</li>
+                    <li id="device">device: Other 0.0.0</li>
+                </ul>
+                <h2>os</h2>
+                <ul>
+                    <li id="string">string: Mac OS X 11.2.3</li>
+                    <li id="family">family: Mac OS X</li>
+                    <li id="major">major: 11</li>
+                    <li id="minor">minor: 2</li>
+                    <li id="patch">patch: 3</li>
+                </ul>
+            </div>
+        </div>
+        <div id="ua-parser-js" class="parser block">
+            <h2>According to&nbsp;<a href="https://github.com/faisalman/ua-parser-js">ua-parser-js</a>&nbsp;v0.7.20:
+            </h2>
+            <div class="parser-results"></div>
+            <h2>ua</h2>
+            <ul>
+                <li>ua: Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko)
+                    HeadlessChrome/89.0.4389.90 Safari/537.36</li>
+            </ul>
+            <h2>browser</h2>
+            <ul>
+                <li>name: Chrome Headless</li>
+                <li>version: 89.0.4389.90</li>
+                <li>major: 89</li>
+            </ul>
+            <h2>engine</h2>
+            <ul>
+                <li>name: Blink</li>
+                <li>version: undefined</li>
+            </ul>
+            <h2>os</h2>
+            <ul>
+                <li>name: Mac OS</li>
+                <li>version: 11.2.3</li>
+            </ul>
+            <h2>device</h2>
+            <ul>
+                <li>vendor: undefined</li>
+                <li>model: undefined</li>
+                <li>type: undefined</li>
+            </ul>
+            <h2>cpu</h2>
+            <ul>
+                <li>architecture: undefined</li>
+            </ul>
+        </div>
+        <div id="platform.js" class="parser block">
+            <h2>According to&nbsp;<a href="https://github.com/bestiejs/platform.js/">platform.js</a>&nbsp;v1.3.5:</h2>
+            <div class="parser-results">
+                <h2>ua</h2>
+                <ul>
+                    <li id="name">name: Safari</li>
+                    <li id="version">version: 7.x</li>
+                    <li id="layout">layout: WebKit</li>
+                </ul>
+                <h2>os</h2>
+                <ul>
+                    <li id="os">os: OS X 11.2.3</li>
+                </ul>
+                <h2>device</h2>
+                <ul>
+                    <li id="product">product:</li>
+                    <li id="manufacturer">manufacturer:</li>
+                    <li id="description">description: Safari 7.x on OS X 11.2.3</li>
+                </ul>
+            </div>
+        </div>
+        <div class="api block">
+            <h2 id="api">API</h2>
+            <p><code>GET /api/v1/ua?ua=&lt;ua-string&gt;&amp;version=&lt;ua-parser-version&gt;</code></p>
+            <p>Parameters:</p>
+            <ul>
+                <li><code>ua-string</code>: Be sure to url-encode it. Defaults to your request's user agent string.</li>
+                <li><code>ua-parser-version</code>: Coming soon. Defaults to "latest".</li>
+            </ul>
+        </div>
+    </div>
+    <script async="" src="//www.google-analytics.com/analytics.js"></script>
+    <script>var WMUArawUa = "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_2_3) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/89.0.4389.90 Safari/537.36";</script>
+    <script src="/js/app-built.js"></script>
+    <script>(function (i, s, o, g, r, a, m) {
+            i['GoogleAnalyticsObject'] = r; i[r] = i[r] || function () {
+                (i[r].q = i[r].q || []).push(arguments)
+            }, i[r].l = 1 * new Date(); a = s.createElement(o),
+                m = s.getElementsByTagName(o)[0]; a.async = 1; a.src = g; m.parentNode.insertBefore(a, m)
+        })(window, document, 'script', '//www.google-analytics.com/analytics.js', 'ga');
+        ga('create', 'UA-1913538-6', 'whatsmyua.info');
+        ga('send', 'pageview');</script>
+</body>
+
+</html>

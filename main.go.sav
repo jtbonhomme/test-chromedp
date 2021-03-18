@@ -1,0 +1,56 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/chromedp/cdproto/dom"
+	"github.com/chromedp/cdproto/emulation"
+	"github.com/chromedp/chromedp"
+)
+
+func main() {
+	// create chrome instance
+	ctx, cancel := chromedp.NewContext(
+		context.Background(),
+		chromedp.WithLogf(log.Printf),
+	)
+	defer cancel()
+	// create a timeout
+	ctx, cancel = context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	var res string
+	start := time.Now()
+	fmt.Printf("starts\n")
+
+	// The tasks are combined through the variadic parameter in the .Run function.
+	err := chromedp.Run(ctx,
+		// Let’s use a custom User-Agent so that our scraper can be identified on servers.
+		emulation.SetUserAgentOverride("WebScraper 1.0"),
+		// We’ll use the github.com home page.
+		chromedp.Navigate(`https://github.com`),
+		// Let’s scroll down to the footer to make sure that the page has rendered fully.
+		chromedp.ScrollIntoView(`footer`),
+		// We need the browser to wait until the footer has rendered.
+		chromedp.WaitVisible(`footer < div`),
+		// Scrape the Data
+		chromedp.Text(`h1`, &res, chromedp.NodeVisible, chromedp.ByQuery),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			node, err := dom.GetDocument().Do(ctx)
+			if err != nil {
+				return err
+			}
+			res, er := dom.GetOuterHTML().WithNodeID(node.NodeID).Do(ctx)
+			fmt.Print(res)
+			return er
+		}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("h1 contains: '%s'\n", res)
+	fmt.Printf("\nTook: %f secs\n", time.Since(start).Seconds())
+
+}
