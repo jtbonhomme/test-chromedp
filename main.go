@@ -11,8 +11,20 @@ import (
 	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/dom"
 	"github.com/chromedp/chromedp"
-	"github.com/davecgh/go-spew/spew"
 )
+
+func traverse(ctx context.Context, node *cdp.Node, name string) error {
+	fmt.Printf("[%d] %d /%s/%s %s %d\n", node.NodeID, node.NodeType, name, node.NodeName, node.NodeValue, node.ChildNodeCount)
+	quads, err := dom.GetContentQuads().WithNodeID(node.NodeID).Do(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("quads: %v\n", quads)
+	for _, n := range node.Children {
+		traverse(ctx, n, fmt.Sprintf("/%s/%s", name, node.NodeName))
+	}
+	return nil
+}
 
 func main() {
 	start := time.Now()
@@ -25,12 +37,6 @@ func main() {
 		// set viewport
 		chromedp.EmulateViewport(780, 651),
 		chromedp.Navigate(`https://www.whatsmyua.info/?a`),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = chromedp.Run(ctx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			var err error
 			var root *cdp.Node
@@ -41,7 +47,10 @@ func main() {
 			if err != nil {
 				return err
 			}
-			spew.Dump(root)
+			err = traverse(ctx, root, "")
+			if err != nil {
+				return err
+			}
 			// https://chromedevtools.github.io/devtools-protocol/tot/DOM/#type-Node
 			// https://dom.spec.whatwg.org/#dom-node-nodetype
 			return nil
