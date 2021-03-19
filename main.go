@@ -7,8 +7,8 @@ import (
 	"flag"
 	"fmt"
 
-	//"io/ioutil"
 	"crypto/sha1"
+	"io/ioutil"
 	"log"
 	"time"
 
@@ -49,38 +49,111 @@ func main() {
 		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &headerNodes, chromedp.ByQueryAll),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			for _, node := range headerNodes {
-				fmt.Printf("-------------------- %s ------------------ \n", node.NodeName)
-				fmt.Printf("Node: %d %s %s %s %s %+v %s %s\n",
-					node.NodeID,
-					node.Name,
-					node.Value,
-					node.NodeName,
-					node.NodeValue,
-					node.Attributes,
-					node.PartialXPath(),
-					node.FullXPath())
-				fmt.Printf("\tChildren: %+v \n", node.Children)
+				/*				fmt.Printf("-------------------- %s ------------------ \n", node.NodeName)
+								fmt.Printf("Node: %d %s %s %s %s %+v %s %s\n",
+									node.NodeID,
+									node.Name,
+									node.Value,
+									node.NodeName,
+									node.NodeValue,
+									node.Attributes,
+									node.PartialXPath(),
+									node.FullXPath())
+								fmt.Printf("\tChildren: %+v \n", node.Children)*/
 				quads, err := dom.GetContentQuads().WithNodeID(node.NodeID).Do(ctx)
 				if err != nil {
-					fmt.Printf("\t%s\n", err.Error())
+					//					fmt.Printf("\t%s\n", err.Error())
 					continue
 				}
-				fmt.Printf("\tPosition top/bottom vertical element position: [%d px.. %d px]\n", int(quads[0][1]), int(quads[0][5]))
+				//fmt.Printf("\tPosition top/bottom vertical element position: [%d px.. %d px]\n", int(quads[0][1]), int(quads[0][5]))
+				if quads[0][1] > quads[0][5] {
+					continue
+				}
+			}
+			return nil
+		}),
+		// set viewport
+		chromedp.EmulateViewport(1280, 720),
+		chromedp.Navigate(url),
+		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
+		chromedp.ActionFunc(func(c context.Context) error {
+			// depth -1 for the entire subtree
+			// do your best to limit the size of the subtree
+			return dom.RequestChildNodes(ids[0]).WithDepth(-1).Do(c)
+		}),
+		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &headerNodes, chromedp.ByQueryAll),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			for _, node := range headerNodes {
+				/*				fmt.Printf("-------------------- %s ------------------ \n", node.NodeName)
+								fmt.Printf("Node: %d %s %s %s %s %+v %s %s\n",
+									node.NodeID,
+									node.Name,
+									node.Value,
+									node.NodeName,
+									node.NodeValue,
+									node.Attributes,
+									node.PartialXPath(),
+									node.FullXPath())
+								fmt.Printf("\tChildren: %+v \n", node.Children)*/
+				quads, err := dom.GetContentQuads().WithNodeID(node.NodeID).Do(ctx)
+				if err != nil {
+					//					fmt.Printf("\t%s\n", err.Error())
+					continue
+				}
+				//fmt.Printf("\tPosition top/bottom vertical element position: [%d px.. %d px]\n", int(quads[0][1]), int(quads[0][5]))
+				if quads[0][1] > quads[0][5] {
+					continue
+				}
+			}
+			return nil
+		}),
+		// set viewport
+		chromedp.EmulateViewport(1900, 1280),
+		chromedp.Navigate(url),
+		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
+		chromedp.ActionFunc(func(c context.Context) error {
+			// depth -1 for the entire subtree
+			// do your best to limit the size of the subtree
+			return dom.RequestChildNodes(ids[0]).WithDepth(-1).Do(c)
+		}),
+		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &headerNodes, chromedp.ByQueryAll),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			for _, node := range headerNodes {
+				/*				fmt.Printf("-------------------- %s ------------------ \n", node.NodeName)
+								fmt.Printf("Node: %d %s %s %s %s %+v %s %s\n",
+									node.NodeID,
+									node.Name,
+									node.Value,
+									node.NodeName,
+									node.NodeValue,
+									node.Attributes,
+									node.PartialXPath(),
+									node.FullXPath())
+								fmt.Printf("\tChildren: %+v \n", node.Children)*/
+				quads, err := dom.GetContentQuads().WithNodeID(node.NodeID).Do(ctx)
+				if err != nil {
+					//					fmt.Printf("\t%s\n", err.Error())
+					continue
+				}
+				//fmt.Printf("\tPosition top/bottom vertical element position: [%d px.. %d px]\n", int(quads[0][1]), int(quads[0][5]))
+				if quads[0][1] > quads[0][5] {
+					continue
+				}
 			}
 			return nil
 		}),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			var err error
-			var root *cdp.Node
+			//			var root *cdp.Node
 			fmt.Println("---------------------")
 			fmt.Println("GetDocument")
 			fmt.Println("---------------------")
-			root, err = dom.GetDocument().Do(ctx)
-			if err != nil {
-				return err
-			}
+			/*			root, err = dom.GetDocument().Do(ctx)
+						if err != nil {
+							return err
+						}*/
 			// export html for debug
-			res, err := dom.GetOuterHTML().WithNodeID(root.NodeID).Do(ctx)
+			res, err := dom.GetOuterHTML().WithNodeID(ids[0]).Do(ctx)
 			if err != nil {
 				return err
 			}
@@ -88,10 +161,10 @@ func main() {
 			h.Write([]byte(res))
 			bs := h.Sum(nil)
 			fmt.Printf("%x\n", bs)
-			/*err = ioutil.WriteFile("layout.html", []byte(res), 0o644)
+			err = ioutil.WriteFile("layout.html", []byte(res), 0o644)
 			if err != nil {
 				return err
-			}*/
+			}
 			return nil
 		}),
 	)
