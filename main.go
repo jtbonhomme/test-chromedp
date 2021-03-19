@@ -43,11 +43,38 @@ func main() {
 
 	// run
 	var ids []cdp.NodeID
+	var headerNodes []*cdp.Node
 	err := chromedp.Run(ctx,
 		// set viewport
 		chromedp.EmulateViewport(780, 651),
 		chromedp.Navigate(`https://www.whatsmyua.info/?a`),
 		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
+		chromedp.ActionFunc(func(c context.Context) error {
+			// depth -1 for the entire subtree
+			// do your best to limit the size of the subtree
+			return dom.RequestChildNodes(ids[0]).WithDepth(-1).Do(c)
+		}),
+		chromedp.Nodes(":is(div, a, form, img)", &headerNodes, chromedp.ByQueryAll),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			for _, node := range headerNodes {
+				quads, err := dom.GetContentQuads().WithNodeID(node.NodeID).Do(ctx)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("-------------------- %s ------------------ \n", node.NodeName)
+				fmt.Printf("Node: %d %s %s %s %s %+v %s\n",
+					node.NodeID,
+					node.Name,
+					node.Value,
+					node.NodeName,
+					node.NodeValue,
+					node.Attributes,
+					node.FullXPath())
+				fmt.Printf("\tChildren: %+v \n", node.Children)
+				fmt.Printf("\tPosition top/bottom vertical element position: [%d px.. %d px]\n", int(quads[0][1]), int(quads[0][5]))
+			}
+			return nil
+		}),
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			var err error
 			var root *cdp.Node
@@ -68,12 +95,10 @@ func main() {
 				return err
 			}
 
-			err = traverse(ctx, root, "")
-			if err != nil {
-				return err
-			}
-			// https://chromedevtools.github.io/devtools-protocol/tot/DOM/#type-Node
-			// https://dom.spec.whatwg.org/#dom-node-nodetype
+			/*			err = traverse(ctx, root, "")
+						if err != nil {
+							return err
+						}*/
 			return nil
 		}),
 	)
