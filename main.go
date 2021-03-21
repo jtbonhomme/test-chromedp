@@ -20,15 +20,29 @@ import (
 )
 
 const (
-	defaultURL = `https://www.whatsmyua.info/?a`
-	usageURL   = "the URL to be scrapped"
+	defaultURL       string = `https://www.whatsmyua.info/?a`
+	usageURL         string = "the URL to be scrapped"
+	DOMNodesSelector string = ":is(div, a, form, img, li, h1, h2, h3)"
 )
 
+func getDefaultResolutions() []ViewPort {
+	return []ViewPort{
+		{780, 651},
+		{1280, 720},
+		{1900, 1280},
+	}
+}
+
+type ViewPort struct {
+	screenWidht  int64
+	screenHeigth int64
+}
+
 type ElementAnalysis struct {
-	filename     string
-	screenWidht  int
-	screenHeigth int
-	headerNodes  []*cdp.Node
+	ctx context.Context
+	ViewPort
+	headerNodes []*cdp.Node
+	ids         []cdp.NodeID
 }
 
 func (e *ElementAnalysis) getElementHeights(ctx context.Context) error {
@@ -59,9 +73,23 @@ func (e *ElementAnalysis) getElementHeights(ctx context.Context) error {
 		}
 		res += fmt.Sprintf("\tPosition top/bottom vertical element position: [%d px.. %d px]\n", int(quads[0][1]), int(quads[0][5]))
 	}
-	err := ioutil.WriteFile(e.filename, []byte(res), 0o644)
+	filename := fmt.Sprintf("%dx%d.dom", e.screenWidht, e.screenHeigth)
+	err := ioutil.WriteFile(filename, []byte(res), 0o644)
 	if err != nil {
-		return errors.New("write file " + e.filename + ": " + err.Error())
+		return errors.New("write file " + filename + ": " + err.Error())
+	}
+	return nil
+}
+
+func (e *ElementAnalysis) analizeElementsHeights() error {
+	var err error
+	err = chromedp.Run(e.ctx,
+		chromedp.EmulateViewport(e.screenWidht, e.screenHeigth),
+		chromedp.Nodes(DOMNodesSelector, &e.headerNodes, chromedp.ByQueryAll),
+		chromedp.ActionFunc(e.getElementHeights),
+	)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -75,6 +103,7 @@ func main() {
 	var url string
 	e := ElementAnalysis{
 		headerNodes: []*cdp.Node{},
+		ctx:         ctx,
 	}
 
 	flag.StringVar(&url, "url", defaultURL, usageURL)
@@ -82,8 +111,7 @@ func main() {
 	flag.Parse()
 	// run
 	fmt.Printf("Open URL %s\n", url)
-	var ids []cdp.NodeID
-	var bodys []*cdp.Node
+	//var bodys []*cdp.Node
 	err = chromedp.Run(ctx,
 		emulation.SetUserAgentOverride("JT-WebScraper-1.0"),
 		chromedp.Navigate(url),
@@ -92,52 +120,19 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = chromedp.Run(ctx,
-		chromedp.EmulateViewport(780, 651),
-		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
-		chromedp.ActionFunc(func(c context.Context) error {
-			e.filename = "780x651.dom"
-			return nil
-		}),
-		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
-		chromedp.ActionFunc(e.getElementHeights),
-	)
-	if err != nil {
-		log.Fatal(err)
+	for _, vp := range getDefaultResolutions() {
+		e.screenWidht = vp.screenWidht
+		e.screenHeigth = vp.screenHeigth
+		err = e.analizeElementsHeights()
+		if err != nil {
+			log.Fatal(err)
+		}
+
 	}
 
+	var ids []cdp.NodeID
 	err = chromedp.Run(ctx,
-		chromedp.EmulateViewport(1280, 720),
-		chromedp.Navigate(url),
 		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
-		chromedp.ActionFunc(func(c context.Context) error {
-			e.filename = "1280x720.dom"
-			return nil
-		}),
-		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
-		chromedp.ActionFunc(e.getElementHeights),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = chromedp.Run(ctx,
-		// set viewport
-		chromedp.EmulateViewport(1900, 1280),
-		chromedp.Navigate(url),
-		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
-		chromedp.ActionFunc(func(c context.Context) error {
-			e.filename = "1900x1280.dom"
-			return nil
-		}),
-		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
-		chromedp.ActionFunc(e.getElementHeights),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = chromedp.Run(ctx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			var err error
 			fmt.Println("---------------------")
@@ -165,40 +160,41 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = chromedp.Run(ctx,
-		chromedp.Nodes(`body`, &bodys, chromedp.ByQueryAll),
-		chromedp.ActionFunc(func(ctx context.Context /*h cdptypes.Handler*/) error {
-			var err error
+	/*
+		err = chromedp.Run(ctx,
+			chromedp.Nodes(`body`, &bodys, chromedp.ByQueryAll),
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				var err error
 
-			fmt.Println("---------------------")
-			fmt.Println("Get body outerHTML after modification")
-			fmt.Println("---------------------")
-			err = traverse(ctx, bodys[0])
-			if err != nil {
-				return errors.New("failed traverse dom: " + err.Error())
-			}
+				fmt.Println("---------------------")
+				fmt.Println("Get body outerHTML after modification")
+				fmt.Println("---------------------")
+				err = traverse(ctx, bodys[0])
+				if err != nil {
+					return errors.New("failed traverse dom: " + err.Error())
+				}
 
-			res, err := dom.GetOuterHTML().WithNodeID(ids[0]).Do(ctx)
-			if err != nil {
-				return errors.New("get outer html from node: " + err.Error())
-			}
-			h := sha1.New()
-			h.Write([]byte(res))
-			bs := h.Sum(nil)
-			sha := fmt.Sprintf("%x", bs)
-			fmt.Println("Output " + sha + ".html")
-			err = ioutil.WriteFile(sha+".html", []byte(res), 0o644)
-			if err != nil {
-				return errors.New("save layout " + sha + ".html: " + err.Error())
-			}
-			return nil
-		}),
-	)
+				res, err := dom.GetOuterHTML().WithNodeID(ids[0]).Do(ctx)
+				if err != nil {
+					return errors.New("get outer html from node: " + err.Error())
+				}
+				h := sha1.New()
+				h.Write([]byte(res))
+				bs := h.Sum(nil)
+				sha := fmt.Sprintf("%x", bs)
+				fmt.Println("Output " + sha + ".html")
+				err = ioutil.WriteFile(sha+".html", []byte(res), 0o644)
+				if err != nil {
+					return errors.New("save layout " + sha + ".html: " + err.Error())
+				}
+				return nil
+			}),
+		)
 
-	if err != nil {
-		log.Fatal(err)
-	}
-
+		if err != nil {
+			log.Fatal(err)
+		}
+	*/
 	fmt.Printf("\nTook: %f secs\n", time.Since(start).Seconds())
 }
 
