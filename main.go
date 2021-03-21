@@ -67,6 +67,7 @@ func (e *ElementAnalysis) getElementHeights(ctx context.Context) error {
 }
 
 func main() {
+	var err error
 	start := time.Now()
 	// create context
 	ctx, cancel := chromedp.NewContext(context.Background())
@@ -83,11 +84,16 @@ func main() {
 	fmt.Printf("Open URL %s\n", url)
 	var ids []cdp.NodeID
 	var bodys []*cdp.Node
-	err := chromedp.Run(ctx,
+	err = chromedp.Run(ctx,
 		emulation.SetUserAgentOverride("JT-WebScraper-1.0"),
-		// set viewport
-		chromedp.EmulateViewport(780, 651),
 		chromedp.Navigate(url),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = chromedp.Run(ctx,
+		chromedp.EmulateViewport(780, 651),
 		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
 		chromedp.ActionFunc(func(c context.Context) error {
 			e.filename = "780x651.dom"
@@ -95,7 +101,12 @@ func main() {
 		}),
 		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
 		chromedp.ActionFunc(e.getElementHeights),
-		// set viewport
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = chromedp.Run(ctx,
 		chromedp.EmulateViewport(1280, 720),
 		chromedp.Navigate(url),
 		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
@@ -105,6 +116,12 @@ func main() {
 		}),
 		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
 		chromedp.ActionFunc(e.getElementHeights),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = chromedp.Run(ctx,
 		// set viewport
 		chromedp.EmulateViewport(1900, 1280),
 		chromedp.Navigate(url),
@@ -115,6 +132,12 @@ func main() {
 		}),
 		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
 		chromedp.ActionFunc(e.getElementHeights),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = chromedp.Run(ctx,
 		chromedp.ActionFunc(func(ctx context.Context) error {
 			var err error
 			fmt.Println("---------------------")
@@ -137,6 +160,12 @@ func main() {
 			}
 			return nil
 		}),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = chromedp.Run(ctx,
 		chromedp.Nodes(`body`, &bodys, chromedp.ByQueryAll),
 		chromedp.ActionFunc(func(ctx context.Context /*h cdptypes.Handler*/) error {
 			var err error
