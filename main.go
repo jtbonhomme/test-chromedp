@@ -127,7 +127,7 @@ func main() {
 		*/chromedp.ActionFunc(func(ctx context.Context) error {
 			var err error
 			fmt.Println("---------------------")
-			fmt.Println("Get body outerHTML")
+			fmt.Println("Get body outerHTML before modification")
 			fmt.Println("---------------------")
 
 			// export html for debug
@@ -139,6 +139,7 @@ func main() {
 			h.Write([]byte(res))
 			bs := h.Sum(nil)
 			sha := fmt.Sprintf("%x", bs)
+			fmt.Println("Output " + sha + ".html")
 			err = ioutil.WriteFile(sha+".html", []byte(res), 0o644)
 			if err != nil {
 				return errors.New("save layout " + sha + ".html: " + err.Error())
@@ -148,26 +149,11 @@ func main() {
 		chromedp.Nodes(`body`, &bodys, chromedp.ByQueryAll),
 		chromedp.ActionFunc(func(ctx context.Context /*h cdptypes.Handler*/) error {
 			var err error
-			/*root, err := h.GetRoot(ctx)
-			if err != nil {
-				return errors.New("failed to get root node: " + err.Error())
-			}
-			traverse(ctx, root)*/
 
 			fmt.Println("---------------------")
 			fmt.Println("Get body outerHTML after modification")
 			fmt.Println("---------------------")
-			/*node, err := dom.DescribeNode().WithNodeID(ids[0]).Do(ctx)
-			if err != nil {
-				return errors.New(fmt.Sprintf("error while getting node id %d: %s", ids[0], err.Error()))
-			}*/
 			err = traverse(ctx, bodys[0])
-			/*			root, err := dom.GetDocument().Do(ctx)
-						if err != nil {
-							return errors.New(fmt.Sprintf("error while getting dom root: %s", err.Error()))
-						}
-						err = traverse(ctx, root)*/
-
 			if err != nil {
 				return errors.New("failed traverse dom: " + err.Error())
 			}
@@ -180,6 +166,7 @@ func main() {
 			h.Write([]byte(res))
 			bs := h.Sum(nil)
 			sha := fmt.Sprintf("%x", bs)
+			fmt.Println("Output " + sha + ".html")
 			err = ioutil.WriteFile(sha+".html", []byte(res), 0o644)
 			if err != nil {
 				return errors.New("save layout " + sha + ".html: " + err.Error())
@@ -206,10 +193,6 @@ func traverse(ctx context.Context, node *cdp.Node) error {
 	if err != nil {
 		return errors.New(fmt.Sprintf("error while describing node id %d: %s", node.BackendNodeID, err.Error()))
 	}
-	/*	err = dom.RequestChildNodes(nodeParams.NodeID).WithDepth(-1).Do(ctx)
-		if err != nil {
-			return errors.New(fmt.Sprintf("error while requesting child nodes from node id %d: %s", node.NodeID, err.Error()))
-		}*/
 	for _, n := range nodeParams.Children {
 		//for _, n := range node.Children {
 		err = traverse(ctx, n)
