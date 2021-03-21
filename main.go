@@ -72,9 +72,9 @@ func main() {
 	ctx, cancel := chromedp.NewContext(context.Background())
 	defer cancel()
 	var url string
-	/*e := ElementAnalysis{
+	e := ElementAnalysis{
 		headerNodes: []*cdp.Node{},
-	}*/
+	}
 
 	flag.StringVar(&url, "url", defaultURL, usageURL)
 	flag.StringVar(&url, "u", defaultURL, usageURL+" (shorthand)")
@@ -89,11 +89,8 @@ func main() {
 		chromedp.EmulateViewport(780, 651),
 		chromedp.Navigate(url),
 		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
-		/*chromedp.ActionFunc(func(c context.Context) error {
+		chromedp.ActionFunc(func(c context.Context) error {
 			e.filename = "780x651.dom"
-			// depth -1 for the entire subtree
-			// do your best to limit the size of the subtree
-			//return dom.RequestChildNodes(ids[0]).WithDepth(-1).Do(c)
 			return nil
 		}),
 		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
@@ -104,9 +101,6 @@ func main() {
 		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
 		chromedp.ActionFunc(func(c context.Context) error {
 			e.filename = "1280x720.dom"
-			// depth -1 for the entire subtree
-			// do your best to limit the size of the subtree
-			//return dom.RequestChildNodes(ids[0]).WithDepth(-1).Do(c)
 			return nil
 		}),
 		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
@@ -117,14 +111,11 @@ func main() {
 		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
 		chromedp.ActionFunc(func(c context.Context) error {
 			e.filename = "1900x1280.dom"
-			// depth -1 for the entire subtree
-			// do your best to limit the size of the subtree
-			//return dom.RequestChildNodes(ids[0]).WithDepth(-1).Do(c)
 			return nil
 		}),
 		chromedp.Nodes(":is(div, a, form, img, li, h1, h2, h3)", &e.headerNodes, chromedp.ByQueryAll),
 		chromedp.ActionFunc(e.getElementHeights),
-		*/chromedp.ActionFunc(func(ctx context.Context) error {
+		chromedp.ActionFunc(func(ctx context.Context) error {
 			var err error
 			fmt.Println("---------------------")
 			fmt.Println("Get body outerHTML before modification")
