@@ -3,14 +3,15 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"crypto/sha1"
 	"errors"
 	"flag"
 	"fmt"
-
-	"crypto/sha1"
 	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
@@ -22,14 +23,24 @@ import (
 const (
 	defaultURL       string = `https://www.whatsmyua.info/?a`
 	usageURL         string = "the URL to be scrapped"
+	usageFile        string = "file of urls"
 	DOMNodesSelector string = ":is(div, a, form, img, li, h1, h2, h3)"
 )
 
 func getDefaultResolutions() []ViewPort {
 	return []ViewPort{
-		{780, 651},
-		{1280, 720},
-		{1900, 1280},
+		{800, 800},
+		{900, 800},
+		{1000, 800},
+		{1100, 900},
+		{1200, 900},
+		{1300, 900},
+		{1400, 1000},
+		{1500, 1000},
+		{1600, 1000},
+		{1700, 1100},
+		{1800, 1100},
+		{1900, 1100},
 	}
 }
 
@@ -83,6 +94,7 @@ func (e *ElementAnalysis) getElementHeights(ctx context.Context) error {
 
 func (e *ElementAnalysis) analizeElementsHeights() error {
 	var err error
+	fmt.Printf("analizeElementsHeights screen dimension : %d x %d\n", e.screenWidht, e.screenHeigth)
 	err = chromedp.Run(e.ctx,
 		chromedp.EmulateViewport(e.screenWidht, e.screenHeigth),
 		chromedp.Nodes(DOMNodesSelector, &e.headerNodes, chromedp.ByQueryAll),
@@ -100,7 +112,8 @@ func main() {
 	// create context
 	ctx, cancel := chromedp.NewContext(context.Background())
 	defer cancel()
-	var url string
+	var url, filename string
+	var urls []string
 	e := ElementAnalysis{
 		headerNodes: []*cdp.Node{},
 		ctx:         ctx,
@@ -108,72 +121,62 @@ func main() {
 
 	flag.StringVar(&url, "url", defaultURL, usageURL)
 	flag.StringVar(&url, "u", defaultURL, usageURL+" (shorthand)")
+	flag.StringVar(&filename, "f", "", usageFile)
+	flag.StringVar(&filename, "file", "", usageFile+" (shorthand)")
 	flag.Parse()
-	// run
-	fmt.Printf("Open URL %s\n", url)
-	//var bodys []*cdp.Node
-	err = chromedp.Run(ctx,
-		emulation.SetUserAgentOverride("JT-WebScraper-1.0"),
-		chromedp.Navigate(url),
-	)
-	if err != nil {
-		log.Fatal(err)
+
+	if filename == "" {
+		urls = append(urls, url)
+	} else {
+		file, err := os.Open(filename)
+		if err != nil {
+			log.Fatalf("failed opening file: %s", err)
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+		scanner.Split(bufio.ScanLines)
+		var txtlines []string
+
+		for scanner.Scan() {
+			txtlines = append(txtlines, scanner.Text())
+		}
+
+		for _, eachline := range txtlines {
+			urls = append(urls, eachline)
+		}
 	}
 
-	for _, vp := range getDefaultResolutions() {
-		e.screenWidht = vp.screenWidht
-		e.screenHeigth = vp.screenHeigth
-		err = e.analizeElementsHeights()
+	for _, u := range urls {
+		fmt.Printf("Open URL %s\n", url)
+		//var bodys []*cdp.Node
+		err = chromedp.Run(ctx,
+			emulation.SetUserAgentOverride("JT-WebScraper-1.0"),
+			chromedp.Navigate(u),
+		)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-	}
-
-	var ids []cdp.NodeID
-	err = chromedp.Run(ctx,
-		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			var err error
-			fmt.Println("---------------------")
-			fmt.Println("Get body outerHTML before modification")
-			fmt.Println("---------------------")
-
-			// export html for debug
-			res, err := dom.GetOuterHTML().WithNodeID(ids[0]).Do(ctx)
+		for _, vp := range getDefaultResolutions() {
+			e.screenWidht = vp.screenWidht
+			e.screenHeigth = vp.screenHeigth
+			err = e.analizeElementsHeights()
 			if err != nil {
-				return errors.New("get outer html from node: " + err.Error())
+				log.Fatal(err)
 			}
-			h := sha1.New()
-			h.Write([]byte(res))
-			bs := h.Sum(nil)
-			sha := fmt.Sprintf("%x", bs)
-			fmt.Println("Output " + sha + ".html")
-			err = ioutil.WriteFile(sha+".html", []byte(res), 0o644)
-			if err != nil {
-				return errors.New("save layout " + sha + ".html: " + err.Error())
-			}
-			return nil
-		}),
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
+		}
 
-	/*
+		var ids []cdp.NodeID
 		err = chromedp.Run(ctx,
-			chromedp.Nodes(`body`, &bodys, chromedp.ByQueryAll),
+			chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
 			chromedp.ActionFunc(func(ctx context.Context) error {
 				var err error
-
 				fmt.Println("---------------------")
-				fmt.Println("Get body outerHTML after modification")
+				fmt.Println("Get body outerHTML before modification")
 				fmt.Println("---------------------")
-				err = traverse(ctx, bodys[0])
-				if err != nil {
-					return errors.New("failed traverse dom: " + err.Error())
-				}
 
+				// export html for debug
 				res, err := dom.GetOuterHTML().WithNodeID(ids[0]).Do(ctx)
 				if err != nil {
 					return errors.New("get outer html from node: " + err.Error())
@@ -190,11 +193,46 @@ func main() {
 				return nil
 			}),
 		)
-
 		if err != nil {
 			log.Fatal(err)
 		}
-	*/
+
+		/*
+			err = chromedp.Run(ctx,
+				chromedp.Nodes(`body`, &bodys, chromedp.ByQueryAll),
+				chromedp.ActionFunc(func(ctx context.Context) error {
+					var err error
+
+					fmt.Println("---------------------")
+					fmt.Println("Get body outerHTML after modification")
+					fmt.Println("---------------------")
+					err = traverse(ctx, bodys[0])
+					if err != nil {
+						return errors.New("failed traverse dom: " + err.Error())
+					}
+
+					res, err := dom.GetOuterHTML().WithNodeID(ids[0]).Do(ctx)
+					if err != nil {
+						return errors.New("get outer html from node: " + err.Error())
+					}
+					h := sha1.New()
+					h.Write([]byte(res))
+					bs := h.Sum(nil)
+					sha := fmt.Sprintf("%x", bs)
+					fmt.Println("Output " + sha + ".html")
+					err = ioutil.WriteFile(sha+".html", []byte(res), 0o644)
+					if err != nil {
+						return errors.New("save layout " + sha + ".html: " + err.Error())
+					}
+					return nil
+				}),
+			)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+		*/
+	}
 	fmt.Printf("\nTook: %f secs\n", time.Since(start).Seconds())
 }
 
