@@ -38,46 +38,63 @@ type ViewPort struct {
 	screenHeight int64
 }
 
+type WidthVariation []int
+type FullReport map[string]WidthVariation
+
 type ElementAnalysis struct {
 	ctx context.Context
 	ViewPort
 	headerNodes []*cdp.Node
 	ids         []cdp.NodeID
+	report      FullReport
+}
+
+func getMidZoneHeight(bottom, top int) int {
+	if bottom < top {
+		return 0
+	}
+	return int(top + (bottom - top)/2)
 }
 
 func (e *ElementAnalysis) getElementHeights(ctx context.Context) error {
-	var res string
+	var res, output string
+LOOP:
 	for _, node := range e.headerNodes {
+		res = ""
 		res += fmt.Sprintf("-------------------- %s ------------------ \n", node.NodeName)
-		res += fmt.Sprintf("Node: %d %s %s %s %s %+v %s %s\n",
+		res += fmt.Sprintf("Node: %d %s %s %s %s %+v %s\n",
 			node.NodeID,
 			node.Name,
 			node.Value,
 			node.NodeName,
 			node.NodeValue,
 			node.Attributes,
-			node.PartialXPath(),
 			node.FullXPath())
+
 		res += fmt.Sprintf("\tChildren (%d): %+v \n", node.ChildNodeCount, node.Children)
 		if node.ChildNodeCount == 0 {
 			html, err := dom.GetOuterHTML().WithNodeID(node.NodeID).Do(ctx)
 			if err != nil {
-				res += fmt.Sprintf("\t%s\n", err.Error())
+				continue LOOP
 			}
 			res += fmt.Sprintf("%s\n", html)
 		}
 		quads, err := dom.GetContentQuads().WithNodeID(node.NodeID).Do(ctx)
 		if err != nil {
-			res += fmt.Sprintf("\t%s\n", err.Error())
-			continue
+			continue LOOP
 		}
-		res += fmt.Sprintf("\tPosition top/bottom vertical element position: [%d px.. %d px]\n", int(quads[0][1]), int(quads[0][5]))
+		mid := getMidZoneHeight(int(quads[0][5]), int(quads[0][1]))
+		e.report[node.FullXPath()] = append(e.report[node.FullXPath()], mid)
+		res += fmt.Sprintf("\tPosition top/bottom vertical element position: %d [%d px.. %d px]\n", mid, int(quads[0][1]), int(quads[0][5]))
+		output += res
 	}
+
 	filename := fmt.Sprintf("%dx%d.dom", e.screenWidth, e.screenHeight)
-	err := ioutil.WriteFile(filename, []byte(res), 0o644)
+	err := ioutil.WriteFile(filename, []byte(output), 0o644)
 	if err != nil {
 		return errors.New("write file " + filename + ": " + err.Error())
 	}
+
 	return nil
 }
 
@@ -95,6 +112,25 @@ func (e *ElementAnalysis) analyzeElementsHeights() error {
 	return nil
 }
 
+func (e *ElementAnalysis) printCSV() error {
+	var err error
+	var output string
+	fmt.Printf("\n%+v\n", e.report)
+	filename := "output.csv"
+	for xpath, dim := range e.report {
+		output += xpath
+		for _, y := range dim {
+			output += ", " + strconv.Itoa(y)
+		}
+		output += "\n"
+	}
+	err = ioutil.WriteFile(filename, []byte(output), 0o644)
+	if err != nil {
+		return errors.New("write file " + filename + ": " + err.Error())
+	}
+	return nil
+}
+
 func main() {
 	var err error
 	start := time.Now()
@@ -108,13 +144,14 @@ func main() {
 	e := ElementAnalysis{
 		headerNodes: []*cdp.Node{},
 		ctx:         ctx,
+		report:      make(FullReport),
 	}
 	flag.StringVar(&minScreenWidth, "min", minimumScreenWidth, usageMin)
 	flag.StringVar(&minScreenWidth, "m", minimumScreenWidth, usageMin+" (shorthand)")
 	flag.StringVar(&maxScreenWidth, "max", maximumScreenWidth, usageMax)
 	flag.StringVar(&maxScreenWidth, "M", maximumScreenWidth, usageMax+" (shorthand)")
 	flag.StringVar(&screenHeight, "height", defaultScreenHeight, usageHeight)
-	flag.StringVar(&screenHeight, "h", defaultScreenHeight, usageHeight+" (shorthand)")
+	flag.StringVar(&screenHeight, "H", defaultScreenHeight, usageHeight+" (shorthand)")
 	flag.StringVar(&widthInc, "inc", defaultWidthInc, usageInc)
 	flag.StringVar(&widthInc, "i", defaultWidthInc, usageInc+" (shorthand)")
 
@@ -183,6 +220,12 @@ func main() {
 			return nil
 		}),
 	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+
+	err = e.printCSV()
 	if err != nil {
 		log.Fatal(err)
 	}

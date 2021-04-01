@@ -9,6 +9,7 @@ Install Go 1.16 (https://golang.org/dl/)
 Run :
 ```sh
 $ go run main.go -u "https://www.cdiscount.com/search/10/sac+michael+kors.html"
+$ go run main.go -m 800 -M 4900 -H 100 -u 'https://www.dior.com/fr_fr'
 ```
 
 # Usage
