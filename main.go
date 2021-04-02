@@ -133,6 +133,7 @@ func (e *ElementAnalysis) printCSV() error {
 
 func main() {
 	var err error
+	var nWidth int
 	start := time.Now()
 	// create context
 	ctx, cancel := chromedp.NewContext(context.Background())
@@ -186,6 +187,7 @@ func main() {
 	}
 
 	for m := minWidth; m < maxWidth; m += inc {
+		nWidth++
 		e.screenWidth = int64(m)
 		e.screenHeight = int64(height)
 		err = e.analyzeElementsHeights()
@@ -230,7 +232,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("\nTook: %f secs\n", time.Since(start).Seconds())
+	fmt.Printf("\nTook: %f secs for %d different width\n", time.Since(start).Seconds(), nWidth)
 }
 
 func traverse(ctx context.Context, node *cdp.Node) error {
