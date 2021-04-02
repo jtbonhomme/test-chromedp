@@ -47,6 +47,8 @@ type ElementAnalysis struct {
 	headerNodes []*cdp.Node
 	ids         []cdp.NodeID
 	report      FullReport
+	outputDom   bool
+	outputHTML  bool
 }
 
 func getMidZoneHeight(bottom, top int) int {
@@ -60,6 +62,16 @@ func (e *ElementAnalysis) getElementHeights(ctx context.Context) error {
 	var res, output string
 LOOP:
 	for _, node := range e.headerNodes {
+		quads, err := dom.GetContentQuads().WithNodeID(node.NodeID).Do(ctx)
+		if err != nil {
+			continue LOOP
+		}
+		mid := getMidZoneHeight(int(quads[0][5]), int(quads[0][1]))
+		e.report[node.FullXPath()] = append(e.report[node.FullXPath()], mid)
+
+		if !e.outputDom {
+			continue LOOP
+		}
 		res = ""
 		res += fmt.Sprintf("-------------------- %s ------------------ \n", node.NodeName)
 		res += fmt.Sprintf("Node: %d %s %s %s %s %+v %s\n",
@@ -79,20 +91,16 @@ LOOP:
 			}
 			res += fmt.Sprintf("%s\n", html)
 		}
-		quads, err := dom.GetContentQuads().WithNodeID(node.NodeID).Do(ctx)
-		if err != nil {
-			continue LOOP
-		}
-		mid := getMidZoneHeight(int(quads[0][5]), int(quads[0][1]))
-		e.report[node.FullXPath()] = append(e.report[node.FullXPath()], mid)
 		res += fmt.Sprintf("\tPosition top/bottom vertical element position: %d [%d px.. %d px]\n", mid, int(quads[0][1]), int(quads[0][5]))
 		output += res
 	}
 
-	filename := fmt.Sprintf("%dx%d.dom", e.screenWidth, e.screenHeight)
-	err := ioutil.WriteFile(filename, []byte(output), 0o644)
-	if err != nil {
-		return errors.New("write file " + filename + ": " + err.Error())
+	if e.outputDom {
+		filename := fmt.Sprintf("%dx%d.dom", e.screenWidth, e.screenHeight)
+		err := ioutil.WriteFile(filename, []byte(output), 0o644)
+		if err != nil {
+			return errors.New("write file " + filename + ": " + err.Error())
+		}
 	}
 
 	return nil
@@ -112,10 +120,10 @@ func (e *ElementAnalysis) analyzeElementsHeights() error {
 	return nil
 }
 
-func (e *ElementAnalysis) printCSV() error {
+func (e *ElementAnalysis) outputCSV() error {
 	var err error
 	var output string
-	fmt.Printf("\n%+v\n", e.report)
+
 	filename := "output.csv"
 	for xpath, dim := range e.report {
 		output += xpath
@@ -196,38 +204,39 @@ func main() {
 		}
 	}
 
-	var ids []cdp.NodeID
-	err = chromedp.Run(ctx,
-		chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			var err error
-			fmt.Println("---------------------")
-			fmt.Println("Get body outerHTML before modification")
-			fmt.Println("---------------------")
+	if e.outputHTML {
+		var ids []cdp.NodeID
+		err = chromedp.Run(ctx,
+			chromedp.NodeIDs("body", &ids, chromedp.ByQuery),
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				var err error
+				fmt.Println("---------------------")
+				fmt.Println("Get body outerHTML before modification")
+				fmt.Println("---------------------")
 
-			// export html for debug
-			res, err := dom.GetOuterHTML().WithNodeID(ids[0]).Do(ctx)
-			if err != nil {
-				return errors.New("get outer html from node: " + err.Error())
-			}
-			h := sha1.New()
-			h.Write([]byte(res))
-			bs := h.Sum(nil)
-			sha := fmt.Sprintf("%x", bs)
-			fmt.Println("Output " + sha + ".html")
-			err = ioutil.WriteFile(sha+".html", []byte(res), 0o644)
-			if err != nil {
-				return errors.New("save layout " + sha + ".html: " + err.Error())
-			}
-			return nil
-		}),
-	)
-	if err != nil {
-		log.Fatal(err)
+				// export html for debug
+				res, err := dom.GetOuterHTML().WithNodeID(ids[0]).Do(ctx)
+				if err != nil {
+					return errors.New("get outer html from node: " + err.Error())
+				}
+				h := sha1.New()
+				h.Write([]byte(res))
+				bs := h.Sum(nil)
+				sha := fmt.Sprintf("%x", bs)
+				fmt.Println("Output " + sha + ".html")
+				err = ioutil.WriteFile(sha+".html", []byte(res), 0o644)
+				if err != nil {
+					return errors.New("save layout " + sha + ".html: " + err.Error())
+				}
+				return nil
+			}),
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-
-	err = e.printCSV()
+	err = e.outputCSV()
 	if err != nil {
 		log.Fatal(err)
 	}
